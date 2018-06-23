@@ -20,8 +20,14 @@ class MealDetailViewController: UIViewController {
     @IBOutlet weak var headerLabel: UILabel!
     @IBOutlet weak var headerView: UIView!
     
+    @IBOutlet weak var navigationView: UINavigationBar!
     @IBOutlet var headerImageView:UIImageView!
-      
+    
+    var selectedCell: DetailCollectionViewCell?
+    var selectedImageView: UIImageView?
+    
+    var model: Model?
+    
     
     @IBOutlet weak var bottomView: UIView! {
         didSet {
@@ -42,22 +48,41 @@ class MealDetailViewController: UIViewController {
         self.view.addSubview(statusBarView)
         
     }
-    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        headerImageView.image = model?.image
+    }
     func makeNaviagtionBarTransparency() {
-        self.navigationController?.navigationBar.setBackgroundImage(UIImage(), for: .default)
-        self.navigationController?.navigationBar.shadowImage = UIImage()
-        self.navigationController?.navigationBar.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: 0)
+        self.navigationView.setBackgroundImage(UIImage(), for: .default)
+        self.navigationView.shadowImage = UIImage()
+        self.navigationView.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: 0)
 
+    }
+    @IBAction func back(_ sender: UIBarButtonItem) {
+        dismiss(animated: true, completion: nil)
     }
     func makeNaviagtionBarDefault() {
-        self.navigationController?.navigationBar.setBackgroundImage(nil, for: .default)
-        self.navigationController?.navigationBar.shadowImage = nil
-        self.navigationController?.navigationBar.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: 1)
+        self.navigationView.setBackgroundImage(nil, for: .default)
+        self.navigationView.shadowImage = nil
+        self.navigationView.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: 1)
     }
     
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        super.prepare(for: segue, sender: sender)
+        if segue.identifier == "Detail" {
+            if let detailVC = segue.destination as? DetailViewController{
+                if let image = self.selectedImageView?.image {
+                    detailVC.model = Model(image: image)
+                }
+                detailVC.transitioningDelegate = self
+            }
+        }
+        
+    }
 }
 
-extension MealDetailViewController: UICollectionViewDataSource {
+extension MealDetailViewController: UICollectionViewDataSource,UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         if collectionView == IngredientsCollectionView {
             return MealsModel.allIngredients().count
@@ -92,7 +117,12 @@ extension MealDetailViewController: UICollectionViewDataSource {
         return cell
     }
     
-    
+   
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        selectedCell = collectionView.cellForItem(at: indexPath) as? DetailCollectionViewCell
+        selectedImageView = selectedCell?.imageView
+        performSegue(withIdentifier: "Detail", sender: nil)
+    }
 }
 
 extension MealDetailViewController: UIScrollViewDelegate {
@@ -123,9 +153,47 @@ extension MealDetailViewController: UIScrollViewDelegate {
             let alpha = offset / ( headerView.frame.size.height - 84)
             self.statusBarView.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: alpha)
             
-            self.navigationController?.navigationBar.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: alpha)
+            self.navigationView.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: alpha)
         }
         
 
+    }
+}
+
+extension MealDetailViewController: UIViewControllerTransitioningDelegate {
+    
+    func animationController(forPresented presented: UIViewController, presenting: UIViewController, source: UIViewController) -> UIViewControllerAnimatedTransitioning? {
+        var finalFrame: CGRect?
+
+        if let toVC = presented as? MealDetailViewController {
+            finalFrame = toVC.headerImageView.frame
+        }
+        let originFrame = selectedCell?.convert(selectedCell?.imageView.frame ?? CGRect.zero, to: self.view)
+        selectedCell?.imageView.isHidden = true;
+        
+        let transition = PresentAnimationController(originFrame: originFrame!, finalFrame: finalFrame, snapshotView: nil)
+        transition.dismissCompletion = { [weak self] in
+            self?.selectedCell?.imageView.isHidden = false;
+        }
+        return transition
+    }
+    
+    func animationController(forDismissed dismissed: UIViewController) -> UIViewControllerAnimatedTransitioning? {
+        guard let revealVC = dismissed as? DetailViewController else {
+            return nil
+        }
+        if let targetCell = selectedCell {
+            let destinationFrame = targetCell.convert(targetCell.imageView.frame, to: self.view)
+            
+            let snapView = revealVC.imageView
+            
+            let transition = DismissAnimationController(destinationFrame: destinationFrame,snapshotView: snapView);
+            targetCell.imageView.isHidden = true;
+            transition.dismissCompletion = { [weak self] in
+                self?.selectedCell?.imageView.isHidden = false;
+            }
+            return transition
+        }
+        return nil
     }
 }

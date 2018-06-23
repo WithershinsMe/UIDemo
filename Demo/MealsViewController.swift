@@ -50,7 +50,6 @@ class MealsViewController: UIViewController {
         }
     }
     
-    private var animationing: Bool = false
     @IBAction func didSelectedSegmentControl(_ sender: UISegmentedControl) {
         
  
@@ -61,18 +60,18 @@ class MealsViewController: UIViewController {
             collectionViewShouldScroll = true
         }
         
-        if !animationing {
-            animationing = true
+      
+        
             UIView.animate(withDuration: 0.4, animations: {
                 selectedAnimationView?.frame.origin.x = (sender.frame.width / CGFloat(sender.numberOfSegments)) * CGFloat(sender.selectedSegmentIndex)
             }) { _ in
                 
-                if collectionViewShouldScroll {
-                    let selectedIndexPath = IndexPath(row: sender.selectedSegmentIndex, section: 0)
-                    self.collectionView.scrollToItem(at: selectedIndexPath, at: .centeredHorizontally, animated: false)
-                }
+               
             }
             
+        if collectionViewShouldScroll {
+            let selectedIndexPath = IndexPath(row: sender.selectedSegmentIndex, section: 0)
+            self.collectionView.scrollToItem(at: selectedIndexPath, at: .centeredHorizontally, animated: true)
         }
         
     }
@@ -91,6 +90,21 @@ class MealsViewController: UIViewController {
         self.navigationController?.navigationBar.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: 0)
         
     }
+    var selectedCell: MealsCollectionViewCell?
+    var selectedImageView: UIImageView?
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        super.prepare(for: segue, sender: sender)
+        if segue.identifier == "MealShowDetail" {
+            if let detailVC = segue.destination as? MealDetailViewController{
+                if let image = self.selectedImageView?.image {
+                    detailVC.model = Model(image: image)
+                }
+                detailVC.transitioningDelegate = self
+            }
+        }
+        
+    }
 }
 
 extension MealsViewController: UICollectionViewDelegate,UICollectionViewDataSource {
@@ -104,17 +118,59 @@ extension MealsViewController: UICollectionViewDelegate,UICollectionViewDataSour
         return cell
     }
     func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-        if animationing {
-            animationing = false
-        }else {
-            self.segmentControl.selectedSegmentIndex = indexPath.row
-            didSelectedSegmentControl(self.segmentControl)
-        }
+       
+//            self.segmentControl.selectedSegmentIndex = indexPath.row
+//            didSelectedSegmentControl(self.segmentControl)
+       
         
     }
-    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        selectedCell = collectionView.cellForItem(at: indexPath) as? MealsCollectionViewCell
+        selectedImageView = selectedCell?.imageView
+        performSegue(withIdentifier: "MealShowDetail", sender: nil)
+    }
 }
 
+extension MealsViewController: UIViewControllerTransitioningDelegate {
+    
+    func animationController(forPresented presented: UIViewController, presenting: UIViewController, source: UIViewController) -> UIViewControllerAnimatedTransitioning? {
+        
+        var finalFrame: CGRect?
+        var snapView: UIView = (self.selectedCell?.imageView)!.snapshotView(afterScreenUpdates: true)!;
 
+        if let toVC = presented as? MealDetailViewController {
+            finalFrame = toVC.headerImageView.frame
+            snapView = toVC.headerImageView
+        }
+        let originFrame = selectedCell?.convert(selectedCell?.imageView.frame ?? CGRect.zero, to: self.view)
+        //selectedCell?.imageView.alpha = 0;
+        
+        let transition = PresentAnimationController(originFrame: originFrame!, finalFrame: finalFrame, snapshotView: snapView)
+        transition.dismissCompletion = { [weak self] in
+            self?.selectedCell?.imageView.alpha = 1;
+        }
+        transition.originView =  selectedCell?.imageView
+        return transition
+    }
+    
+    func animationController(forDismissed dismissed: UIViewController) -> UIViewControllerAnimatedTransitioning? {
+        guard let revealVC = dismissed as? MealDetailViewController else {
+            return nil
+        }
+        if let targetCell = selectedCell {
+            let destinationFrame = targetCell.convert(targetCell.imageView.frame, to: self.view)
+            
+            let snapView = revealVC.headerImageView
+            
+            let transition = DismissAnimationController(destinationFrame: destinationFrame,snapshotView: snapView);
+            targetCell.imageView.isHidden = true;
+            transition.dismissCompletion = { [weak self] in
+                self?.selectedCell?.imageView.isHidden = false;
+            }
+            return transition
+        }
+        return nil
+    }
+}
 
 
