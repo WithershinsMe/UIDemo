@@ -53,7 +53,7 @@ class MealsViewController: UIViewController {
     @IBAction func didSelectedSegmentControl(_ sender: UISegmentedControl) {
         
  
-        var selectedAnimationView = animationView
+        var selectedAnimationView = animationViewForMain
         var collectionViewShouldScroll = false
         if sender == segmentControl {
             selectedAnimationView = animationView
@@ -62,7 +62,7 @@ class MealsViewController: UIViewController {
         
       
         
-            UIView.animate(withDuration: 0.4, animations: {
+       UIView.animate(withDuration: 0.4, animations: {
                 selectedAnimationView?.frame.origin.x = (sender.frame.width / CGFloat(sender.numberOfSegments)) * CGFloat(sender.selectedSegmentIndex)
             }) { _ in
                 
